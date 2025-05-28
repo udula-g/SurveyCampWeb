@@ -1,0 +1,942 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>SurveyCamp - Research Platform</title>
+    <meta name="description" content="" />
+    <meta name="keywords" content="" />
+
+    <!-- Favicons -->
+    <link href="assets/img/favicon.png" rel="icon" />
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon" />
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&family=Noto+Sans:ital,wght@0,100;0,200;0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,100;1,200;1,300;1,400;1,500;1,600;1,700;1,800;1,900&family=Questrial:wght@400&display=swap" rel="stylesheet" />
+
+    <!-- Vendor CSS Files -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="assets/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet" />
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet" />
+    <link href="assets/vendor/glightbox/css/glightbox.min.css" rel="stylesheet" />
+    <link href="assets/vendor/swiper/swiper-bundle.min.css" rel="stylesheet" />
+    <!-- Font Awesome for icons in Downloads section -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet" />
+
+    <!-- Main CSS File -->
+    <link href="assets/css/main.css" rel="stylesheet" />
+
+    <!-- Custom CSS -->
+    <style>
+      .navmenu a { transition: color 0.3s; }
+      .navmenu a:hover, .navmenu a.active { color: #007bff !important; }
+      .mobile-nav-toggle { cursor: pointer; }
+      .section { padding-top: 80px; } /* Offset for fixed header */
+      .tech-row { display: flex; flex-wrap: nowrap; justify-content: center; gap: 20px; }
+      .tech-item img { width: 100px; height: 100px; object-fit: contain; }
+      @media (max-width: 768px) {
+        .tech-row { flex-wrap: wrap; }
+      }
+      /* Timeline CSS */
+      .timeline {
+        list-style: none;
+        padding: 20px 0;
+        position: relative;
+        margin: 0;
+      }
+      .timeline:before {
+        content: " ";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 50%;
+        width: 4px;
+        background-color: #e9ecef;
+        margin-left: -2px;
+      }
+      .timeline-event {
+        position: relative;
+        margin-bottom: 40px;
+        width: 100%;
+        display: flex;
+        align-items: flex-start;
+      }
+      .timeline-event-icon {
+        background: #fff;
+        border: 4px solid #007bff;
+        border-radius: 50%;
+        width: 24px;
+        height: 24px;
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 1;
+      }
+      .timeline-event-copy {
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        width: 45%;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .timeline-event:nth-child(odd) .timeline-event-copy {
+        margin-right: 55%;
+      }
+      .timeline-event:nth-child(even) .timeline-event-copy {
+        margin-left: 55%;
+      }
+      .timeline-event-thumbnail {
+        font-weight: bold;
+        color: #007bff;
+        margin-bottom: 10px;
+      }
+      .progress-bar.bg-infinity-primary {
+        background-color: #6c757d;
+      }
+      @media (max-width: 768px) {
+        .timeline:before {
+          left: 20px;
+        }
+        .timeline-event-icon {
+          left: 20px;
+          transform: none;
+        }
+        .timeline-event-copy {
+          width: 100% !important;
+          margin-left: 50px !important;
+          margin-right: 10px !important;
+        }
+      }
+      /* Custom styles for Downloads section */
+      .download-pdf, .download-image, .download-powerpoint {
+        color: #007bff;
+      }
+      .download-items a {
+        float: right;
+        color: #007bff;
+        text-decoration: none;
+      }
+      .download-items a:hover {
+        text-decoration: underline;
+      }
+      /* Custom styles for About Us section */
+      .about-team .team-member img {
+        width: 100%;
+        height: 400px;
+        object-fit: cover;
+        border-radius: 8px;
+      }
+      .about-team .team-member h5 {
+        margin-top: 10px;
+        font-size: 1.1rem;
+        color: #333;
+        text-align: center;
+      }
+      @media (max-width: 768px) {
+        .about-team .team-member {
+          margin-bottom: 20px;
+        }
+      }
+      /* Custom styles for Contact Form */
+      .btncolorgradient {
+        background: linear-gradient(90deg, #007bff, #0056b3);
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        transition: background 0.3s ease;
+      }
+      .btncolorgradient:hover {
+        background: linear-gradient(90deg, #0056b3, #003d80);
+      }
+    </style>
+  </head>
+
+  <body class="index-page">
+    <header id="header" class="header d-flex align-items-center sticky-top">
+      <div class="container-fluid container-xl position-relative d-flex align-items-center justify-content-between">
+        <a href="#hero" class="logo d-flex align-items-center me-auto me-xl-0">
+          <h1 class="sitename">SurveyCamp</h1>
+        </a>
+        <nav id="navmenu" class="navmenu">
+          <ul>
+            <li><a href="#hero" class="active">Home</a></li>
+            <li class="dropdown">
+              <a href="#project-scope"><span>Project Scope</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+              <ul>
+                <li><a href="#literature">Literature Survey</a></li>
+                <li><a href="#research_gap">Research Gap</a></li>
+                <li><a href="#research_problem">Research Problem & Solution</a></li>
+                <li><a href="#research_objectives">Research Objectives</a></li>
+                <li><a href="#methodology">Methodology</a></li>
+                <li><a href="#tech_used">Technologies</a></li>
+              </ul>
+            </li>
+            <li><a href="#milestones">Milestones</a></li>
+            <li class="dropdown">
+              <a href="#downloads"><span>Downloads</span> <i class="bi bi-chevron-down toggle-dropdown"></i></a>
+              <ul>
+                <li><a href="#downloads">Documents</a></li>
+                <li><a href="#presentations">Presentations</a></li>
+              </ul>
+            </li>
+            <li><a href="#about">About Us</a></li>
+            <li><a href="#contact">Contact Us</a></li>
+          </ul>
+          <i class="mobile-nav-toggle d-xl-none bi bi-list"></i>
+        </nav>
+      </div>
+    </header>
+
+    <main class="main">
+      <!-- Hero Section -->
+      <section id="hero" class="hero section">
+        <div class="container" data-aos="fade-up" data-aos-delay="100">
+          <div class="row align-items-center content">
+            <div class="col-lg-6" data-aos="fade-up" data-aos-delay="200">
+              <h2>Discover. Engage. Inspire. One Survey at a Time.</h2>
+              <p class="lead">
+                Transforming Data Collection into a Seamless Experience with
+                Imagination and Innovation
+              </p>
+            </div>
+            <div class="col-lg-6">
+              <div class="hero-image">
+                <img
+                  src="assets/img/profile/profile-1.webp"
+                  alt="Portfolio Hero Image"
+                  class="img-fluid"
+                  data-aos="zoom-out"
+                  data-aos-delay="300"
+                />
+                <div class="shape-1"></div>
+                <div class="shape-2"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Project Scope Section -->
+      <section id="project-scope" class="main-sections" style="background-color:#FDFEFE">
+        <div class="container">
+          <h5 class="section-headings">Project Scope</h5>
+          <!-- Literature Survey -->
+          <div id="literature" class="sub-section">
+            <h2>Literature Survey</h2>
+            <p>Challenges in Traditional Surveys</p>
+            <p>While digital technologies have improved survey accessibility, traditional methods continue to suffer from low engagement, high dropout rates, and response biases [1][4]. Meta-analyses reveal that web and mobile surveys often yield inconsistent results due to user fatigue and non adaptive design strategies [5].</p>
+            <br>
+            <p>Gamification in Surveys</p>
+            <p>Gamification—the application of game design elements such as badges, points, and progress indicators—has shown measurable improvements in survey engagement [3]. Platforms like Pollfish and SurveyMonkey have adopted gamified interfaces, yielding higher response rates and longer participation durations [2] [5][6]. However, effective gamification requires careful integration to avoid overwhelming users or shifting focus away from core survey objectives [8].</p>
+            <br>
+            <p>AI-Driven Question Generation</p>
+            <p>Traditional surveys often rely on static and manually designed question sets, which lack personalization and adaptability. Recent advancements in NLP and machine learning now enable the automated generation of contextually relevant questions using SLMs. Tools like Qualtrics and SurveyPoint.ai have begun integrating AI for question creation, though many solutions lack dynamic adjustment based on user feedback [3] [4].</p>
+            <br>
+            <p>Real-Time Quality Control</p>
+            <p>Authentic data collection requires real-time detection of non-genuine responses. Techniques such as Response Pattern Analysis and Behavioral Monitoring—used to track response times, hesitation patterns, and answer consistency—help in identifying careless or automated inputs [4][2]. However, most existing platforms apply these checks post-collection, reducing their corrective potential.</p>
+            <br>
+            <p>Human-Computer Interaction (HCI) for User Experience</p>
+            <p>HCI plays a critical role in shaping user interaction, especially in mobile contexts. Studies affirm that interface clarity, responsive design, and user-centric layouts directly impact user satisfaction and task completion rates [9] [10] [11]. Despite this, many mobile survey platforms underutilize adaptive HCI strategies such as real-time feedback, error prevention, and personalized UI pathways [12] [13].</p>
+            <div class="references">
+              <p class="pt-sm-1"><strong>References</strong></p>
+              <ol>
+                <li>M. Callegaro, K. L. Manfreda and V. Vehovar, Web Survey Methodology, Sage, 2015.</li>
+                <li>M. Revilla and C. Ochoa, "Quality of Respondents in Online Panels: Profiles and Behaviors," Methods, Data, Analyses, vol. 11, p. 195–218, 2017.</li>
+                <li>J. Hamari, J. Koivisto and H. Sarsa, "Does Gamification Work? — A Literature Review of Empirical Studies on Gamification," in the 47th Hawaii International Conference on System Sciences, Hawaii, 2014.</li>
+                <li>A. Dix, J. Finlay, G. Abowd and R. Beale, Human-Computer Interaction, Pearson Education, 2004.</li>
+                <li>J. Nielsen, Usability Engineering, Academic Press, 1993.</li>
+                <li>M. Galesic and M. Bosnjak, "Effects of Questionnaire Length on Participation and Indicators of Response Quality in a Web Survey," Public Opinion Quarterly, vol. 73, no. 2, p. 349–360, 2009.</li>
+                <li>M. P. Couper and P. V. Miller, "Web Survey Methods: Introduction," Public Opinion Quarterly, vol. 72, no. 5, p. 831–835, 2008.</li>
+                <li>"SurveyMonkey," [Online]. Available: https://www.surveymonkey.com.</li>
+                <li>"Gamification in Mobile Surveys: Boosting Engagement and Response Rates.," [Online]. Available: https://www.pollfish.com.</li>
+                <li>S. Deterding, D. Dixon, R. Khaled and L. Nacke, "From Game Design Elements to Gamefulness: Defining Gamification," 2011.</li>
+                <li>B. Shneiderman, C. Plaisant, M. Cohen, S. Jacobs, N. Elmqvist and N. Diakopoulos, "Designing the user interface: strategies for effective human-computer interaction," Information Design Journal, vol. 17, no. 2, pp. 157-158, 2016.</li>
+                <li>D. A. Norman, The Design of Everyday Things, Basic Books, 2013.</li>
+                <li>S. Krug, Don’t Make Me Think, Revisited: A Common Sense Approach to Web Usability, New Riders, 2014.</li>
+              </ol>
+            </div>
+          </div>
+          <!-- Research Gap -->
+          <div id="research_gap" class="sub-section">
+            <h2>Research Gap</h2>
+            <div class="row mt-5 research-gap">
+              <div class="container">
+                <p>Despite advancements in individual domains—gamification, AI, and HCI—most survey platforms implement these features in silos, missing the opportunity for integration. Research shows that gamified elements enhance interaction, and AI improves question clarity and contextual fit, yet these elements rarely co-exist within a unified system. Furthermore, real-time quality mechanisms are often reactive rather than adaptive.</p>
+                <p>Additionally, while HCI principles are well-documented in software development, their application to mobile survey platforms is still nascent. Few systems dynamically respond to user behavior or provide real-time navigational assistance, resulting in suboptimal engagement and data collection.</p>
+                <p>This research addresses these gaps by proposing a cohesive mobile survey system that integrates gamification, AI-driven question generation, real-time quality assessment, and adaptive HCI to enhance both user experience and data reliability.</p>
+                <br>
+              </div>
+            </div>
+          </div>
+          <!-- Research Problem -->
+          <div id="research_problem" class="sub-section">
+            <h2>Research Problem</h2>
+            <p>Traditional and existing digital survey platforms face several enduring issues: low response rates, user fatigue, static content, and limited interactivity. While gamification and AI-driven features offer isolated benefits, they are seldom synthesized into a comprehensive platform. Moreover, mechanisms like Response Pattern Analysis often function separately from user interface design, missing the opportunity for seamless correction and real-time engagement.</p>
+            <p>HCI-driven design, though proven effective in software development remains underutilized in mobile survey applications, particularly in designing adaptive, context-sensitive interfaces. As a result, users experience disjointed interactions that hinder engagement and increase dropout rates.</p>
+            <p>The central research problem is the absence of a unified mobile survey platform that synergistically combines gamification, AI-driven dynamic questioning, real-time quality checks, and HCI-based UX design to ensure both engagement and data validity.</p>
+            <br>
+            <div>
+              <h5><strong>Proposed Solution</strong></h5>
+              <br>
+              <p style="text-align: justify;">Survey Camp is a cutting-edge mobile application that revolutionizes survey research by addressing challenges like survey fatigue, participant drop-off, poor data quality, and low motivation through advanced technologies and user-centric design. By integrating gamification with leaderboards, badges, and redeemable credits, alongside daily/weekly challenges, it transforms surveys into engaging, rewarding experiences. The platform leverages Large Language Models (LLMs) for dynamic, customizable survey generation, machine learning (e.g., Random Forest classifiers, sentiment analysis) for robust response validation, and Human-Computer Interaction (HCI) techniques like adaptive UI, real-time feedback, and interactive inputs to reduce cognitive load and sustain user engagement. Contextual bandit models personalize the interface, while multi-layered validation ensures data integrity by detecting fraudulent or irrelevant responses. Survey Camp offers a scalable, intelligent solution that balances technological innovation with methodological rigor, delivering high-quality, representative data for researchers while fostering a motivating experience for participants.</p>
+            </div>
+          </div>
+          <!-- Research Objectives -->
+          <div id="research_objectives" class="sub-section">
+            <div class="container">
+              <h2 class="pb-5 pt-5 text-center mb-5 display-5">Research Objectives</h2>
+              <!-- First Content Section-->
+              <div class="row align-items-center connecting-lines d-flex">
+                <div class="col-2 text-center bottom d-inline-flex justify-content-center align-items-center">
+                  <div class="circle font-weight-bold"><i class="bi bi-star-fill"></i></div>
+                </div>
+                <div class="col-6">
+                  <h4>Design and implement gamification features</h4>
+                  <p style="text-align: justify;">such as badges, progress bars, and points to maintain user motivation and reduce dropout rates</p>
+                </div>
+              </div>
+              <!-- Path Line -->
+              <div class="row timeline_s">
+                <div class="col-2">
+                  <div class="corner top-right"></div>
+                </div>
+                <div class="col-8">
+                  <hr/>
+                </div>
+                <div class="col-2">
+                  <div class="corner left-bottom"></div>
+                </div>
+              </div>
+              <!-- Second Content Section-->
+              <div class="row align-items-center justify-content-end connecting-lines d-flex">
+                <div class="col-6 text-right">
+                  <h4>Develop an AI-driven question generation module</h4>
+                  <p style="text-align: justify;">using SLMs that tailors questions to user context and prior responses for improved clarity and engagement.</p>
+                </div>
+                <div class="col-2 text-center full d-inline-flex justify-content-center align-items-center">
+                  <div class="circle font-weight-bold"><i class="bi bi-star-fill"></i></div>
+                </div>
+              </div>
+              <!-- Path Line -->
+              <div class="row timeline_s">
+                <div class="col-2">
+                  <div class="corner right-bottom"></div>
+                </div>
+                <div class="col-8">
+                  <hr/>
+                </div>
+                <div class="col-2">
+                  <div class="corner top-left"></div>
+                </div>
+              </div>
+              <!-- Third Content Section -->
+              <div class="row align-items-center connecting-lines d-flex">
+                <div class="col-2 text-center full d-inline-flex justify-content-center align-items-center">
+                  <div class="circle font-weight-bold"><i class="bi bi-star-fill"></i></div>
+                </div>
+                <div class="col-6">
+                  <h4>Integrate real-time quality control systems</h4>
+                  <p style="text-align: justify;">
+                    using Response Pattern Analysis and Behavioral Monitoring to detect non-genuine or inconsistent inputs during survey progression
+                  </p>
+                </div>
+              </div>
+              <!-- Path Line -->
+              <div class="row timeline_s">
+                <div class="col-2">
+                  <div class="corner top-right"></div>
+                </div>
+                <div class="col-8">
+                  <hr/>
+                </div>
+                <div class="col-2">
+                  <div class="corner left-bottom"></div>
+                </div>
+              </div>
+              <!-- Fourth Content Section-->
+              <div class="row align-items-center justify-content-end connecting-lines d-flex">
+                <div class="col-6 text-right">
+                  <h4>Apply HCI principles</h4>
+                  <p style="text-align: justify;">to create intuitive, adaptive user interfaces that improve navigation, response time, and overall satisfaction on mobile devices</p>
+                </div>
+                <div class="col-2 text-center full d-inline-flex justify-content-center align-items-center">
+                  <div class="circle font-weight-bold"><i class="bi bi-star-fill"></i></div>
+                </div>
+              </div>
+              <!-- Path Line -->
+              <div class="row timeline_s">
+                <div class="col-2">
+                  <div class="corner right-bottom"></div>
+                </div>
+                <div class="col-8">
+                  <hr/>
+                </div>
+                <div class="col-2">
+                  <div class="corner top-left"></div>
+                </div>
+              </div>
+              <!-- Fifth Content Section-->
+              <div class="row align-items-center connecting-lines d-flex">
+                <div class="col-2 text-center bottom d-inline-flex justify-content-center align-items-center">
+                  <div class="circle font-weight-bold"><i class="bi bi-star-fill"></i></div>
+                </div>
+                <div class="col-6">
+                  <h4>Evaluate the platform’s performance</h4>
+                  <p style="text-align: justify;">against traditional survey methods in terms of user engagement, data completeness, and reliability</p>
+                </div>
+              </div>
+              <!-- Path Line -->
+              <div class="row timeline_s">
+                <div class="col-2">
+                  <div class="corner top-right"></div>
+                </div>
+                <div class="col-8">
+                  <hr/>
+                </div>
+                <div class="col-2">
+                  <div class="corner left-bottom"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Methodology -->
+          <div id="methodology" class="sub-section">
+            <h2>Methodology</h2>
+            <div class="row">
+              <div id="project-scope-left" class="col-md-6 col-sm-12 pt-lg-5">
+                <div class="section-left">
+                  <div class="section-figure">
+                    <img src="assets/img/other/Component Diagram.png" width="100%"/>
+                    <p>Figure 2. System Architecture</p>
+                  </div>
+                </div>
+              </div>
+              <div id="project-scope-right" class="col-md-6 col-sm-12 pt-lg-5 justify-text">
+                <p>The proposed application consists of 4 main components. They are;</p>
+                <ol>
+                  <li><strong>Gamification and a Credit-Based Incentive System</strong></li>
+                  <li><strong>Integrated Survey Response Quality Control Mechanisms</strong></li>
+                  <li><strong>AI-driven Survey Generation</strong></li>
+                  <li><strong>Human-Computer Interaction (HCI) Techniques for Enhanced Engagement</strong></li>
+                </ol>
+                <p>Survey Camp’s methodology modernizes survey research by tackling survey fatigue, drop-off, poor data quality, and low motivation with advanced technology and user-centric design. Researchers register, define target audiences, and create customizable surveys manually or via LLM-driven generation, which are distributed to matching users. Responses are validated in real-time using machine learning, sentiment analysis, and LLM-based checks to ensure data integrity, with results delivered to researchers via a scalable, cloud-based platform that continuously updates fraud detection.</p>
+                <p>Participants engage through a gamified interface with leaderboards, redeemable credits, and challenges, enhanced by HCI techniques like adaptive UI, interactive inputs, and real-time feedback to minimize drop-off. Contextual bandit models personalize the experience based on user behavior. This streamlined, engaging approach ensures high-quality, representative data while transforming surveys into rewarding interactions for users.</p>
+              </div>
+            </div>
+          </div>
+          <!-- Technologies Used -->
+          <div id="tech_used" class="sub-section">
+            <h2>Technologies Used</h2>
+            <div class="container py-4">
+              <div class="tech-row">
+                <!-- Python -->
+                <div class="tech-item text-center">
+                  <img src="./assets/img/Technologies/Python.png" alt="Python Logo">
+                  <p class="mt-2">Python</p>
+                </div>
+                <!-- Google Colab -->
+                <div class="tech-item text-center">
+                  <img src="./assets/img/Technologies/Colab.png" alt="Google Colab Logo">
+                  <p class="mt-2">Google Colab</p>
+                </div>
+                <!-- Flutter -->
+                <div class="tech-item text-center">
+                  <img src="./assets/img/Technologies/flutter.png" alt="Flutter Logo">
+                  <p class="mt-2">Flutter</p>
+                </div>
+                <!-- Firebase -->
+                <div class="tech-item text-center">
+                  <img src="./assets/img/Technologies/firebase.png" alt="Firebase Logo">
+                  <p class="mt-2">Firebase</p>
+                </div>
+                <!-- FastAPI -->
+                <div class="tech-item text-center">
+                  <img src="./assets/img/Technologies/FastAPI.png" alt="FastAPI Logo">
+                  <p class="mt-2">FastAPI</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Milestones Section -->
+      <section id="milestones" class="main-sections" data-aos="fade-up" data-aos-delay="100">
+        <div class="container">
+            <h5 class="section-headings">Milestones</h5>
+            <div class="sub-section">
+                <h2>Timeline in Brief</h2>
+                <div class="milestones">
+                  <ul class="timeline">
+                    <!-- Project Proposal -->
+                    <li class="timeline-event" data-aos="fade-right" data-aos-delay="200">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">Aug 2024</p>
+                        <h3>Project Proposal</h3>
+                        <p>A Project Proposal is presented to potential sponsors or clients to receive funding or get your project approved.</p>
+                        <p><strong>Marks Allocated: </strong>6%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 6%" aria-valuenow="6" aria-valuemin="0" aria-valuemax="100">6%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Progress Presentation I -->
+                    <li class="timeline-event" data-aos="fade-left" data-aos-delay="300">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">Dec 2024</p>
+                        <h3>Progress Presentation I</h3>
+                        <p>Progress Presentation I reviews the 50% completion status of the project. This reveals any gaps or inconsistencies in the design/requirements.</p>
+                        <p><strong>Marks Allocated: </strong>6%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 6%" aria-valuenow="6" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 6%" aria-valuenow="6" aria-valuemin="0" aria-valuemax="100">6%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Research Paper -->
+                    <li class="timeline-event" data-aos="fade-right" data-aos-delay="400">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">March 2025</p>
+                        <h3>Research Paper</h3>
+                        <p>Describes what you contribute to existing knowledge, giving due recognition to all work that you referred in making new knowledge.</p>
+                        <p><strong>Marks Allocated: </strong>10%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 12%" aria-valuenow="12" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 10%" aria-valuenow="10" aria-valuemin="0" aria-valuemax="100">10%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Progress Presentation II -->
+                    <li class="timeline-event" data-aos="fade-left" data-aos-delay="500">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">March 2025</p>
+                        <h3>Progress Presentation II</h3>
+                        <p>Progress Presentation II reviews the 90% completion status demonstration of the project. Along with a Poster presentation which describes the project as a whole.</p>
+                        <p><strong>Marks Allocated: </strong>18%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 22%" aria-valuenow="22" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 18%" aria-valuenow="18" aria-valuemin="0" aria-valuemax="100">18%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Website -->
+                    <li class="timeline-event" data-aos="fade-right" data-aos-delay="600">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">May 2025</p>
+                        <h3>Website Assessment</h3>
+                        <p>The Website helps to promote our research project and reveals all details related to the project.</p>
+                        <p><strong>Marks Allocated: </strong>2%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 40%" aria-valuenow="40" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 2%" aria-valuenow="2" aria-valuemin="0" aria-valuemax="100">2%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Logbook -->
+                    <li class="timeline-event" data-aos="fade-left" data-aos-delay="700">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">May 2025</p>
+                        <h3>Logbook</h3>
+                        <p>Status of the project is validated through the Logbook. This also includes Status documents 1 & 2.</p>
+                        <p><strong>Marks Allocated: </strong>3%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 42%" aria-valuenow="42" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 3%" aria-valuenow="3" aria-valuemin="0" aria-valuemax="100">3%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Final Report -->
+                    <li class="timeline-event" data-aos="fade-right" data-aos-delay="800">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">April 2025</p>
+                        <h3>Final Report</h3>
+                        <p>Final Report evaluates the completed project done throughout the year. Marks mentioned below include marks for Individual & group reports and also Final report.</p>
+                        <p><strong>Marks Allocated: </strong>19%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 45%" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 19%" aria-valuenow="19" aria-valuemin="0" aria-valuemax="100">19%</div>
+                        </div>
+                      </div>
+                    </li>
+                    <!-- Viva -->
+                    <li class="timeline-event" data-aos="fade-left" data-aos-delay="900">
+                      <label class="timeline-event-icon"></label>
+                      <div class="timeline-event-copy">
+                        <p class="timeline-event-thumbnail">May 2025</p>
+                        <h3>Final Presentation & Viva</h3>
+                        <p>Viva is held individually to assess each member's contribution to the project.</p>
+                        <p><strong>Marks Allocated: </strong>20%</p>
+                        <div class="progress">
+                          <div class="progress-bar bg-infinity-primary" role="progressbar" style="width: 64%" aria-valuenow="64" aria-valuemin="0" aria-valuemax="100"></div>
+                          <div class="progress-bar bg-success" role="progressbar" style="width: 20%" aria-valuenow="20" aria-valuemin="0" aria-valuemax="100">20%</div>
+                        </div>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <!-- Downloads Section -->
+      <section id="downloads" class="main-sections" >
+        <div class="container">
+            <h5 class="section-headings">Downloads</h5>
+            <!-- Documents -->
+            <div class="sub-section">
+                <h2>Documents</h2>
+                <p>Please find all documents related to this project below.</p>
+                <div class="row mt-sm-5 downloads-container">
+                 <!-- Topic Assessment -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-pdf mr-2 download-pdf"></i>Topic Assessment</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2024/07/25</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://drive.google.com/file/d/1PtjLkHDiODWQ1O3_rIKNbRnHIM7EqchJ/view?usp=sharing" target="_blank">Download</a></li>
+                        <!-- <li class="list-group-item">Individual<a href="">Download</a></li> -->
+                      </ul>
+                    </div>
+                  </div>
+                  <!-- Project Proposal -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-pdf mr-2 download-pdf"></i>Project Proposal</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2024/08/22</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Individual<a href="https://drive.google.com/drive/folders/1OinIkch_IphcXv83rOKfVK78GWawk9SU?usp=sharing" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <!-- Research -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-pdf mr-2 download-pdf"></i>Research Paper</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2025/03/22</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://drive.google.com/file/d/1sazs8COdWmmwAopRvoBpkXdRYTUuTlxT/view?usp=sharing" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <!-- Final Report -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-pdf mr-2 download-pdf"></i>Final Report</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2025/04/13</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://drive.google.com/file/d/1jCP6-yW9EzKsOV9m4JqCgAn1Ldln8KU7/view?usp=sharing" target="_blank">Download</a></li>
+                        <li class="list-group-item">Individual<a href="https://drive.google.com/drive/folders/1QHZeunpZxLkLl-L2S0CYDV89rgYpz0og?usp=sharing" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+            </div>
+            <!-- Presentations -->
+            <div id="presentations" class="sub-section">
+                <h2>Presentations</h2>
+                <p>Please find all presentations related this project below.</p>
+                <div class="row mt-sm-5 downloads-container">
+                  <!-- Project Proposal -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-powerpoint mr-2 download-powerpoint"></i>Project Proposal</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2024/08/14</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://docs.google.com/presentation/d/14NkMF7f8yFnCeKA5xr1-56LRi2DO3uZ6/edit?usp=drive_link&ouid=103509703172955250845&rtpof=true&sd=true" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <!-- Progress Presentation I -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-powerpoint mr-2 download-powerpoint"></i>Progress Presentation I</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2024/12/08</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://docs.google.com/presentation/d/1OeVO2Tua8EBoQ56EJvVoNzUuhnrKsULz/edit?usp=drive_link&ouid=103509703172955250845&rtpof=true&sd=true" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <!-- Progress Presentation II -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-powerpoint mr-2 download-powerpoint"></i>Progress Presentation II</h5>
+                        <p class="card-text pt-sm-2">Submitted on 2025/03/18</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://docs.google.com/presentation/d/1nMsRqTvsXDJlpqj5No8orBQpR4xuca03/edit?usp=drive_link&ouid=103509703172955250845&rtpof=true&sd=true" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                  <!-- Final Presentation -->
+                  <div class="col-lg-3 col-md-4 col-sm-12">
+                    <div class="card" >
+                      <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-file-powerpoint mr-2 download-powerpoint"></i>Final Presentation</h5>
+                        <p class="card-text pt-sm-2">Yet to be submitted, link will be updated soon.</p>
+                      </div>
+                      <ul class="download-items list-group list-group-flush">
+                        <li class="list-group-item">Group<a href="https://drive.google.com/drive/folders/1T1CKcEHHAPFUxjh63f20WxIiNVyvTNmg?usp=sharing" target="_blank">Download</a></li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+            </div>
+        </div>
+      </section>
+
+      <!-- About Us Section -->
+      <section id="about" class="main-sections light-background">
+        <div class="container section-title" data-aos="fade-up">
+          <h2>About Us</h2>
+        </div>
+        <div class="container about-team" data-aos="fade-up" data-aos-delay="100">
+          <div class="row g-4">
+            <!-- Team Member 1 -->
+            <div class="col-lg-3 col-md-6 col-sm-12">
+              <div class="team-member text-center">
+                <img src="./assets/img/profileimages/rusiru.jpg" alt="Rusiru Fernando" class="img-fluid">
+                <h5>Rusiru Fernando</h5>
+              </div>
+            </div>
+            <!-- Team Member 2 -->
+            <div class="col-lg-3 col-md-6 col-sm-12">
+              <div class="team-member text-center">
+                <img src="./assets/img/profileimages/kisal.jpeg" alt="Kisal Mirihagoda" class="img-fluid">
+                <h5>Kisal Mirihagoda</h5>
+              </div>
+            </div>
+            <!-- Team Member 3 -->
+            <div class="col-lg-3 col-md-6 col-sm-12">
+              <div class="team-member text-center">
+                <img src="./assets/img/profileimages/udulaPersona (2).jpg" alt="Udula Ganepola" class="img-fluid">
+                <h5>Udula Ganepola</h5>
+              </div>
+            </div>
+            <!-- Team Member 4 -->
+            <div class="col-lg-3 col-md-6 col-sm-12">
+              <div class="team-member text-center">
+                <img src="./assets/img/profileimages/himaya.jpg" alt="Himaya Chandrasena" class="img-fluid">
+                <h5>Himaya Chandrasena</h5>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      
+
+      <!-- Contact Section -->
+      <section id="contact" class="contact section light-background">
+        <div class="container" data-aos="fade-up" data-aos-delay="100">
+          <div class="row g-5">
+            <div class="col-lg-6">
+              <div class="content" data-aos="fade-up" data-aos-delay="200">
+                <div class="section-category mb-3">Contact</div>
+                <h2 class="display-5 mb-4">
+                  Get in Touch
+                </h2>
+                <div class="contact-info mt-5">
+                  <div class="info-item d-flex mb-3">
+                    <i class="bi bi-envelope-at me-3"></i>
+                    <span>surveycampinfo@gmail.com</span>
+                  </div></br>
+                  <p>Hope this project helped you in some manner.</p>
+                  <p>Thank you!</p>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-6">
+              <div class="contact-form card" data-aos="fade-up" data-aos-delay="300">
+                <div class="card-body p-4 p-lg-5">
+                  <form action="MAILTO:surveycampinfo@gmail.com" method="POST" enctype="text/plain">
+                      <div class="form-group">
+                        <label for="name">Name</label>
+                        <input type="text" class="form-control" id="name" placeholder="John Doe">
+                      </div>
+                      <div class="form-group">
+                        <label for="email">Email address</label>
+                        <input type="email" class="form-control" id="email" placeholder="name@example.com">
+                      </div>
+                      <div class="form-group">
+                        <label for="message">Message or Query</label>
+                        <textarea class="form-control" id="message" rows="5"></textarea>
+                      </div><br>
+                      <button type="submit" class="btn btncolorgradient	">Submit</button>
+                    </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="container">
+        <div class="copyright text-center">
+          <p>
+            © <span>Copyright</span>
+            <strong class="px-1 sitename">SurveyCamp</strong>
+            <span>All Rights Reserved</span>
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <!-- Scroll Top -->
+    <a href="#" id="scroll-top" class="scroll-top d-flex align-items-center justify-content-center">
+      <i class="bi bi-arrow-up-short"></i>
+    </a>
+
+    <!-- Vendor JS Files -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/vendor/php-email-form/validate.js"></script>
+    <script src="assets/vendor/aos/aos.js"></script>
+    <script src="assets/vendor/waypoints/noframework.waypoints.js"></script>
+    <script src="assets/vendor/glightbox/js/glightbox.min.js"></script>
+    <script src="assets/vendor/imagesloaded/imagesloaded.pkgd.min.js"></script>
+    <script src="assets/vendor/isotope-layout/isotope.pkgd.min.js"></script>
+    <script src="assets/vendor/swiper/swiper-bundle.min.js"></script>
+
+    <!-- Main JS File -->
+    <script src="assets/js/main.js"></script>
+
+    <!-- Excel Processing JS -->
+    <script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+    </script>
+
+    <!-- Custom JS -->
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        // Initialize AOS
+        AOS.init({
+          duration: 800,
+          once: true
+        });
+        // Smooth scrolling with offset for fixed header
+        document.querySelectorAll('.navmenu a').forEach(anchor => {
+          anchor.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            const targetElement = document.querySelector(targetId);
+            const headerHeight = document.querySelector('#header').offsetHeight;
+            const targetPosition = targetElement.getBoundingClientRect().top + window.scrollY - headerHeight;
+            window.scrollTo({ top: targetPosition, behavior: 'smooth' });
+          });
+        });
+        // Add active class to current menu item based on scroll position
+        window.addEventListener('scroll', () => {
+          const sections = document.querySelectorAll('section');
+          const navLinks = document.querySelectorAll('.navmenu a');
+          let current = '';
+          sections.forEach(section => {
+            const sectionTop = section.offsetTop - 100;
+            if (window.scrollY >= sectionTop) {
+              current = section.getAttribute('id');
+            }
+          });
+          navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href').slice(1) === current) {
+              link.classList.add('active');
+            }
+          });
+        });
+      });
+    </script>
+  </body>
+</html>
